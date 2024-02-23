@@ -4,6 +4,8 @@ var save_cpo = &cpo
 set cpo&vim
 
 g:rtgram_disable = get(g:, 'rtgram_disable', 'WHITESPACE_RULE')
+
+g:rtgram_markers_ignore = get(g:, 'rtgram_markers_ignore', [])
 g:rtgram_markers_stop = get(g:, 'rtgram_markers_stop', [])
 
 highlight default link RTGramIssuMatch SpellCap
@@ -79,6 +81,19 @@ def GetLines(): list<string>
 				return lines
 			endif
 		endfor
+
+		var ignore = false
+		for marker in g:rtgram_markers_ignore
+			if line =~# marker
+				ignore = true
+				break
+			endif
+		endfor
+		if ignore
+			lines->add(repeat(' ', strchars(line)))
+			continue
+		endif
+
 		lines->add(line)
 	endfor
 	return lines
