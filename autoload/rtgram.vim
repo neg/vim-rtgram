@@ -4,6 +4,7 @@ var save_cpo = &cpo
 set cpo&vim
 
 g:rtgram_disable = get(g:, 'rtgram_disable', 'WHITESPACE_RULE')
+g:rtgram_markers_stop = get(g:, 'rtgram_markers_stop', [])
 
 highlight default link RTGramIssuMatch SpellCap
 
@@ -70,9 +71,22 @@ export def Reset()
 	prop_type_add('rtgramissue', {highlight: 'ModeMsg'})
 enddef
 
+def GetLines(): list<string>
+	var lines = []
+	for line in getline(1, "$")
+		for marker in g:rtgram_markers_stop
+			if line =~# marker
+				return lines
+			endif
+		endfor
+		lines->add(line)
+	endfor
+	return lines
+enddef
+
 export def Check()
 	Reset()
-	var lines = getline(1, "$")
+	var lines = GetLines()
 	var data = ''
 
 	def OnClose(ch: channel)
