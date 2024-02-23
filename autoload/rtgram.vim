@@ -3,6 +3,8 @@ vim9script noclear
 var save_cpo = &cpo
 set cpo&vim
 
+g:rtgram_disable = get(g:, 'rtgram_disable', 'WHITESPACE_RULE')
+
 highlight default link RTGramIssuMatch SpellCap
 
 def GenPattern(text: string, start: number, length: number): string
@@ -101,7 +103,12 @@ export def Check()
 		echomsg 'Grammar check found ' .. len(issues) .. ' grammatical issues'
 	enddef
 
-	var cmd = printf('languagetool --clean-overlapping --encoding %s --language %s --json -', &encoding, &spelllang)
+	var extraopts = ''
+	if g:rtgram_disable != ''
+		extraopts ..= ' --disable ' .. g:rtgram_disable
+	endif
+
+	var cmd = printf('languagetool' .. extraopts .. ' --clean-overlapping --encoding %s --language %s --json -', &encoding, &spelllang)
 	var job = job_start(cmd, {close_cb: OnClose, exit_cb: OnExit})
 
 	# Pipe buffer to job and close the pipe to signal no more data
