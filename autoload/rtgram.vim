@@ -71,29 +71,45 @@ enddef
 export def Check()
 	Reset()
 	var lines = getline(1, "$")
+	var data = ''
+
+	def OnClose(ch: channel)
+		while ch_status(ch, {part: 'out'}) == 'buffered'
+			data ..= ch_read(ch)
+		endwhile
+	enddef
+
+	def OnExit(j: job, status: number)
+		if status != 0 || len(data) == 0
+			echomsg 'Grammar check failed ' .. (status != 0 ? 'with exit code ' .. status : 'no data')
+			return
+		endif
+
+		var issues = ParseJson(data, lines)
+		for issue in issues
+			matchadd('RTGramIssuMatch', issue.pattern, 999)
+
+			prop_add(issue.pos.line, 0, {
+				text_padding_left: issue.pos.col,
+				text_align: 'below',
+				type: 'rtgramissue',
+				text:  '└─ ' .. issue.info,
+			})
+		endfor
+
+		redraw!
+		echomsg 'Grammar check found ' .. len(issues) .. ' grammatical issues'
+	enddef
+
+	var cmd = printf('languagetool --clean-overlapping --encoding %s --language %s --json -', &encoding, &spelllang)
+	var job = job_start(cmd, {close_cb: OnClose, exit_cb: OnExit})
+
+	# Pipe buffer to job and close the pipe to signal no more data
+	var ch = job_getchannel(job)
+	ch_sendraw(ch, lines->join("\n"))
+	ch_close_in(ch)
 
 	echomsg 'Grammar check running...'
-	var cmd = printf('languagetool --clean-overlapping --encoding %s --language %s --json -', &encoding, &spelllang)
-	var data = system(cmd .. ' 2> /dev/null', lines)
-	if v:shell_error != 0 || len(data) == 0
-		echomsg 'Grammar check failed ' .. (v:shell_error != 0 ? 'with exit code ' .. v:shell_error : 'no data')
-		return
-	endif
-
-	var issues = ParseJson(data, lines)
-	for issue in issues
-		matchadd('RTGramIssuMatch', issue.pattern, 999)
-
-		prop_add(issue.pos.line, 0, {
-			text_padding_left: issue.pos.col,
-			text_align: 'below',
-			type: 'rtgramissue',
-			text:  '└─ ' .. issue.info,
-		})
-	endfor
-
-	redraw!
-	echomsg 'Grammar check found ' .. len(issues) .. ' grammatical issues'
 enddef
 
 &cpo = save_cpo
